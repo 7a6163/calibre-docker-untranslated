@@ -9,6 +9,7 @@ A Docker image based on linuxserver/calibre that integrates the calibre-do-not-t
 - Multi-architecture support (amd64, arm64)
 - Weekly automated builds to keep up with the latest updates
 - GitHub Container Registry distribution
+- Docker Hub distribution
 
 ## Requirements
 
@@ -46,6 +47,7 @@ A Docker image based on linuxserver/calibre that integrates the calibre-do-not-t
 ### Docker CLI
 
 ```bash
+# Using GitHub Container Registry
 docker run -d \
   --name=calibre \
   --security-opt seccomp=unconfined `#optional` \
@@ -61,6 +63,23 @@ docker run -d \
   -v /path/to/library:/library \
   --restart unless-stopped \
   ghcr.io/7a616/calibre-docker-untranslated:latest
+
+# Or using Docker Hub
+docker run -d \
+  --name=calibre \
+  --security-opt seccomp=unconfined `#optional` \
+  -e PUID=1000 \
+  -e PGID=1000 \
+  -e TZ=Etc/UTC \
+  -e PASSWORD= `#optional` \
+  -e CLI_ARGS= `#optional` \
+  -p 8080:8080 \
+  -p 8181:8181 \
+  -p 8081:8081 \
+  -v /path/to/config:/config \
+  -v /path/to/library:/library \
+  --restart unless-stopped \
+  ${DOCKERHUB_USERNAME}/calibre-docker-untranslated:latest
 ```
 
 ### Docker Compose
@@ -70,7 +89,10 @@ Create a `docker-compose.yml` file:
 ```yaml
 services:
   calibre:
+    # Using GitHub Container Registry
     image: ghcr.io/7a616/calibre-docker-untranslated:latest
+    # Or using Docker Hub
+    # image: ${DOCKERHUB_USERNAME}/calibre-docker-untranslated:latest
     container_name: calibre
     security_opt:
       - seccomp:unconfined #optional
