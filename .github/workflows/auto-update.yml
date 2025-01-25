@@ -1,0 +1,59 @@
+name: Auto Update Docker Image
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest release version
+        id: get_version
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/Cirn09/calibre-do-not-translate-my-path/releases/latest | jq -r .tag_name)
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+          CURRENT_VERSION=$(grep 'ENV PATCH_VERSION=' Dockerfile | cut -d'"' -f2)
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      - name: Update Dockerfile if new version available
+        if: env.LATEST_VERSION != env.CURRENT_VERSION
+        run: |
+          sed -i "s/ENV PATCH_VERSION=\".*\"/ENV PATCH_VERSION=\"${{ env.LATEST_VERSION }}\"/" Dockerfile
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: env.LATEST_VERSION != env.CURRENT_VERSION
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        if: env.LATEST_VERSION != env.CURRENT_VERSION
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/calibre-ut:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/calibre-ut:${{ env.LATEST_VERSION }}
+
+      - name: Commit and push if there are changes
+        if: env.LATEST_VERSION != env.CURRENT_VERSION
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'actions@github.com'
+          git add Dockerfile
+          git commit -m "Update to version ${{ env.LATEST_VERSION }}"
+          git push
