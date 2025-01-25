@@ -8,6 +8,9 @@ on:
 jobs:
   check-and-update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,6 +41,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Login to GitHub Container Registry
+        if: env.LATEST_VERSION != env.CURRENT_VERSION
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
         if: env.LATEST_VERSION != env.CURRENT_VERSION
         uses: docker/build-push-action@v5
@@ -48,6 +59,8 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/calibre-ut:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/calibre-ut:${{ env.LATEST_VERSION }}
+            ghcr.io/${{ github.repository_owner }}/calibre-ut:latest
+            ghcr.io/${{ github.repository_owner }}/calibre-ut:${{ env.LATEST_VERSION }}
 
       - name: Commit and push if there are changes
         if: env.LATEST_VERSION != env.CURRENT_VERSION
